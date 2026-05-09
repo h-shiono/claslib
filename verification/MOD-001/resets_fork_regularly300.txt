@@ -1,0 +1,10 @@
+1 ppp_rtk_pos(): regularly reset filter, tow=231000.0, network=7
+1 ppp_rtk_pos(): regularly reset filter, tow=231300.0, network=7
+1 ppp_rtk_pos(): regularly reset filter, tow=231600.0, network=7
+1 ppp_rtk_pos(): regularly reset filter, tow=231900.0, network=7
+1 ppp_rtk_pos(): regularly reset filter, tow=232200.0, network=7
+1 ppp_rtk_pos(): regularly reset filter, tow=232500.0, network=7
+1 ppp_rtk_pos(): regularly reset filter, tow=232800.0, network=7
+1 ppp_rtk_pos(): regularly reset filter, tow=233100.0, network=7
+1 ppp_rtk_pos(): regularly reset filter, tow=233400.0, network=7
+1 ppp_rtk_pos(): regularly reset filter, tow=233700.0, network=7

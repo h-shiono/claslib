@@ -86,7 +86,8 @@ Each modification follows this lifecycle:
 
 ### MOD-001: Integer rounding of TTFF reset interval
 
-**Status**: Implemented (verification pending) — 2026-05-09
+**Status**: Applied (verified on 1Hz CLASLIB sample data;
+GEONET 30s confirmation pending) — 2026-05-09
 
 **Issue**
 
@@ -227,7 +228,23 @@ documented and reviewed against this constraint.
 
 **Verification results**
 
-To be filled after implementation.
+Verified on 2026-05-09 against `make test_L6_bnx` (1Hz BINEX,
+1-hour window starting 2019-08-27 16:00:00 UTC). Full analysis,
+configurations, outputs, and reset-event extracts are committed
+in [`verification/MOD-001/`](./verification/MOD-001/). Summary:
+
+| # | Property | Result |
+|---|---|---|
+| 1 | No regression with `misc-regularly` disabled | **PASS** — fork and upstream NMEA outputs are bit-identical (7160 lines each, `diff -q` reports no difference) |
+| 2 | Resets fire at integer multiples of `opt->regularly` (1Hz) | **PASS** — fork resets at TOW = 231000, 231300, ..., 233700 (all multiples of 300); upstream resets at TOW = 230720, 231020, ..., 233720 (anchored to first-obs+300, none multiples of 300) |
+| 3 | Reset alignment invariant to obs cadence | **PASS** — fork's reset TOWs are identical between `-ti 1` and `-ti 30` runs; upstream's shift by 10 s when subsampling cadence changes |
+| 4 | Robustness to receiver clock offset on 30 s GEONET data | **PENDING** — public test data has clean integer-second timing, so the failure mode (`timediff` falling just below the configured interval due to clock offset) cannot be reproduced from the CLASLIB sample suite. Confirmation requires a representative PNT Moni production GEONET file and is tracked as a follow-up |
+
+The verification was performed on macOS clang in a non-LAPACK
+build profile (`LDLIBS=-lm`), identical for both branches so
+build-time differences cannot bias the comparison. See
+[`verification/MOD-001/diff-analysis.md`](./verification/MOD-001/diff-analysis.md)
+for the full data and reproduction instructions.
 
 **Upstream PR consideration**
 
@@ -359,3 +376,11 @@ directed to https://github.com/QZSS-Strategy-Office/claslib.
   actual upstream code (timediff-based comparison, not
   modulo+epsilon). Affected-files and Implementation sections
   populated with concrete code.
+- 2026-05-09: MOD-001 verified against `make test_L6_bnx`
+  (1Hz BINEX). Three of four required properties confirmed
+  (regression-free, resets at multiples of `opt->regularly`,
+  cadence-invariant alignment); GEONET 30s clock-offset
+  robustness pending production sample. Status moved to
+  "Applied (verified on 1Hz CLASLIB sample data; GEONET 30s
+  confirmation pending)". Verification artifacts committed
+  under `verification/MOD-001/`.

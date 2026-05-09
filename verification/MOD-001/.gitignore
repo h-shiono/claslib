@@ -1,0 +1,4 @@
+# Large/regenerable verification artifacts.
+# Regenerate via run.sh.
+*.stat
+*.trace
