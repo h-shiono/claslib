@@ -1,3 +1,150 @@
+# pntmoni-claslib
+
+**A transparent fork of CLASLIB for PNT Moni evaluation.**
+
+This is a fork of [CLASLIB](https://github.com/QZSS-Strategy-Office/claslib),
+the official CLAS test library distributed by the QZSS Strategy
+Office of the Cabinet Office of Japan. It is maintained by
+**PNT Moni**, an independent evaluation service for satellite
+navigation augmentation systems.
+
+## Why this fork exists
+
+PNT Moni evaluates QZSS CLAS performance using GEONET 30-second
+sampled observation data. Several technical requirements of this
+evaluation cannot be met by upstream CLASLIB without minimal,
+documented modifications. This fork serves to make those
+modifications available in a fully transparent, auditable way.
+
+The fork follows strict modification protocols. Every modification:
+
+- Has a unique identifier (`MOD-NNN`)
+- Is documented in [PNTMONI_CHANGES.md](./PNTMONI_CHANGES.md) with
+  affected files, rationale, code diff, impact statement, and
+  verification record
+- Is minimal in scope (only changes strictly necessary for
+  PNT Moni evaluation)
+- Does not affect positioning solution computation unless
+  explicitly documented and justified
+- Is considered for upstream contribution where applicable
+
+## Relationship with upstream
+
+| Aspect | Status |
+|---|---|
+| Upstream | https://github.com/QZSS-Strategy-Office/claslib |
+| Upstream version | 0.8.3 (2026/03/31) |
+| Fork purpose | PNT Moni evaluation pipeline (`pntmoni-pipeline`) |
+| Tracking cadence | Within 30 days of upstream release where feasible |
+| License | Inherits upstream BSD 2-Clause + additional clauses |
+| Modifications | See [PNTMONI_CHANGES.md](./PNTMONI_CHANGES.md) |
+
+When upstream CLASLIB releases a new version, this fork is rebased
+against it. Each `MOD-NNN` patch is re-applied and re-verified
+against the new base.
+
+## Maintenance workflow
+
+This fork uses a **trunk-based** workflow rather than git-flow.
+The fork has no independent release cycle (the consumer,
+`pntmoni-pipeline`, simply pins a commit/tag), and the per-MOD
+verification protocol already provides the stability that a
+`develop` branch would otherwise serve. Adding `develop` would
+only increase the rebase burden on each upstream bump without
+buying additional safety.
+
+### Branches
+
+- **`main`** — single source of truth. Always represents the
+  current upstream tag with all merged `MOD-NNN` patches cleanly
+  applied and verified.
+- **`mod-NNN-<short-description>`** — work branch for a single
+  modification, branched from `main`. Merged back via PR using
+  **rebase merge** (not squash), so each `MOD-NNN` remains an
+  individually replayable patch during upstream rebases.
+- **`rebase-vX.Y.Z`** — staging branch for an upstream version
+  bump. `main` is rebased onto the new upstream tag here, every
+  `MOD-NNN` is re-applied and re-verified, then `main` is
+  fast-forwarded.
+
+### Tags
+
+- **`fork-init`** — initial fork identity commit (this README +
+  PNTMONI_CHANGES.md scaffold). No code modifications applied;
+  marks the point from which `MOD-NNN` history begins.
+- **`v<upstream-version>-pntmoni-N`** — fork release on a given
+  upstream base, revision `N` (e.g., `v0.8.3-pntmoni-1`).
+  Incremented when the MOD set changes; reset to 1 on each new
+  upstream base.
+
+### Fork-init / docs-only changes
+
+Documentation that describes the fork itself (this README, the
+maintenance workflow, the PNTMONI_CHANGES.md scaffold) is not a
+modification of upstream code and does not receive a `MOD-NNN`.
+Such changes are committed directly to `main` without a feature
+branch.
+
+### MOD-NNN lifecycle
+
+The detailed protocol for each modification — branch, implement,
+verify, document, tag, consider for upstream — is defined in
+[PNTMONI_CHANGES.md § Modification Protocol](./PNTMONI_CHANGES.md#modification-protocol).
+
+## Where this fork is used
+
+This fork is the CLASLIB engine used in:
+
+- **PNT Moni monthly evaluation reports** for QZSS CLAS
+- **`pntmoni-pipeline`** — PNT Moni's local processing pipeline
+  (referenced as a git submodule under `vendor/pntmoni-claslib/`)
+
+The architectural decision to maintain this fork is documented in
+PNT Moni's
+[ADR 0004: pntmoni-claslib Fork Strategy](https://github.com/h-shiono/pntmoni-docs)
+(private repository).
+
+## Using this fork
+
+For most users, the upstream CLASLIB is the right choice. This fork
+exists for PNT Moni's specific evaluation needs and does not
+attempt to be a general-purpose alternative to upstream.
+
+If you wish to use this fork:
+
+1. Read [PNTMONI_CHANGES.md](./PNTMONI_CHANGES.md) to understand
+   what is different from upstream
+2. Verify the modifications are appropriate for your use case
+3. Cite this fork (not upstream) in any publications based on
+   results obtained with it
+
+## License
+
+This fork inherits the upstream CLASLIB license: BSD 2-Clause
+license plus two additional clauses (commercial use permitted).
+
+All PNT Moni modifications are released under the same license to
+maintain compatibility.
+
+See the License section in the original README below, and the
+upstream LICENSE file for full terms.
+
+## Reporting issues
+
+- **Issues with upstream CLASLIB functionality**: report to the
+  [upstream repository](https://github.com/QZSS-Strategy-Office/claslib)
+- **Issues specific to PNT Moni modifications**: open an issue
+  in this fork repository
+
+---
+
+# Original CLASLIB README
+
+The remainder of this document is the unmodified README from
+upstream CLASLIB v0.8.3.
+
+---
+
 *************************
 CLASLIB (CLAS test library)
 *************************
