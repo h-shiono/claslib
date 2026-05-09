@@ -1,0 +1,8 @@
+# Operational outputs from PNT Moni's evaluation pipeline are
+# not committed to the public fork. Reset event extracts in
+# resets_*.txt are committed as metadata-only audit evidence.
+*.nmea
+*.nmea.stat
+*.nmea.trace
+*.stat
+*.trace

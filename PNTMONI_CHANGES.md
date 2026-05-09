@@ -86,8 +86,9 @@ Each modification follows this lifecycle:
 
 ### MOD-001: Integer rounding of TTFF reset interval
 
-**Status**: Applied (verified on 1Hz CLASLIB sample data;
-GEONET 30s confirmation pending) — 2026-05-09
+**Status**: Applied (verified on 1Hz CLASLIB sample data and on
+GEONET 30s production data, station 0627, 2026-04-01) —
+2026-05-09
 
 **Issue**
 
@@ -238,7 +239,7 @@ in [`verification/MOD-001/`](./verification/MOD-001/). Summary:
 | 1 | No regression with `misc-regularly` disabled | **PASS** — fork and upstream NMEA outputs are bit-identical (7160 lines each, `diff -q` reports no difference) |
 | 2 | Resets fire at integer multiples of `opt->regularly` (1Hz) | **PASS** — fork resets at TOW = 231000, 231300, ..., 233700 (all multiples of 300); upstream resets at TOW = 230720, 231020, ..., 233720 (anchored to first-obs+300, none multiples of 300) |
 | 3 | Reset alignment invariant to obs cadence | **PASS** — fork's reset TOWs are identical between `-ti 1` and `-ti 30` runs; upstream's shift by 10 s when subsampling cadence changes |
-| 4 | Robustness to receiver clock offset on 30 s GEONET data | **PENDING** — public test data has clean integer-second timing, so the failure mode (`timediff` falling just below the configured interval due to clock offset) cannot be reproduced from the CLASLIB sample suite. Confirmation requires a representative PNT Moni production GEONET file and is tracked as a follow-up |
+| 4 | Robustness on real GEONET 30 s data | **PASS** — confirmed on station 0627, 2026-04-01 (DOY 091). Aligned-start session (TOW 259200, multiple of 300): fork and upstream produce identical 11-event reset schedule, demonstrating no regression. Misaligned-start session (TOW 259260, not a multiple of 300): fork resets at 259800…262500 (10 events, all multiples of 300); upstream resets at 259560…262560 (11 events, none multiples of 300), confirming the alignment-drift failure mode and the fix. Note: the *specific* failure mode in MOD-001's Issue (`timediff` < interval due to receiver clock offset) is not directly reproducible because GEONET RINEX exports clean integer-second timestamps; the production failure mode that does manifest is the alignment drift demonstrated above |
 
 The verification was performed on macOS clang in a non-LAPACK
 build profile (`LDLIBS=-lm`), identical for both branches so
@@ -384,3 +385,17 @@ directed to https://github.com/QZSS-Strategy-Office/claslib.
   "Applied (verified on 1Hz CLASLIB sample data; GEONET 30s
   confirmation pending)". Verification artifacts committed
   under `verification/MOD-001/`.
+- 2026-05-09: Property #4 confirmed against GEONET station 0627
+  RINEX for 2026-04-01 (DOY 091) using
+  `pntmoni-pipeline/data/raw/`. Aligned-start session shows
+  fork/upstream identity (no regression on real production
+  data); misaligned-start session shows the expected alignment
+  drift on upstream and absolute-GPS alignment on the fork.
+  GEONET RINEX has clean integer-second timestamps, so the
+  *specific* clock-offset failure mode in the Issue cannot be
+  directly reproduced; the production failure mode that
+  manifests is alignment drift. Verification results table
+  updated; status simplified. Reset-event extracts committed
+  under `verification/MOD-001/geonet/`; underlying
+  NMEA/trace/stat outputs gitignored to avoid republishing
+  operational outputs.

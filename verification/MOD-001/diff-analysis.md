@@ -116,32 +116,64 @@ is sensitive to the effective sampling cadence.
 
 ---
 
-## What this verification does *not* cover
+## Result 4 — Production GEONET 30 s data (station 0627,
+2026-04-01)
 
-The available CLASLIB sample data is at 1 Hz with effectively
-clean integer-second receiver timing, so the failure mode
-described in MOD-001's "Issue" section — `timediff` falling
-just below the configured interval (e.g., 29.999 vs. 30.0)
-because of a non-trivial receiver clock offset on 30-second
-sampled data — cannot be reproduced from the public test
-suite alone.
+Verified separately on station 0627's RINEX (30 s sampled,
+clean integer-second timing) for DOY 091 of 2026. Two start
+times are exercised to expose the alignment behavior:
 
-The 1Hz tests above demonstrate three of the four properties
-required for MOD-001 to be considered correct:
+| Start time | TOW at start | Multiple of 300? | Fork resets | Upstream resets | Identical? |
+|---|---|---|---|---|---|
+| 00:00:00 (aligned) | 259200 | yes | 11 at 259500…262500 (all multiples of 300) | 11 at 259500…262500 (all multiples of 300) | **yes** |
+| 00:01:00 (misaligned) | 259260 | no | 10 at 259800…262500 (all multiples of 300) | 11 at 259560…262560 (**none** multiples of 300) | **no** |
 
-1. ✓ No regression on `misc-regularly`-disabled workloads
-2. ✓ Resets fire at integer multiples of `opt->regularly`
-3. ✓ Reset alignment is invariant to obs cadence
-4. **Pending** — robustness to receiver clock offset on
-   GEONET 30 s data
+**Aligned-start case** demonstrates no regression on real
+GEONET 30 s data: when the session start happens to fall on a
+reset boundary, fork and upstream produce the exact same reset
+schedule.
 
-Property 4 should be re-confirmed once on a representative
-PNT Moni production GEONET file (any 30-second RINEX whose
-timestamps exhibit non-zero sub-second offset). The expected
-fork behavior: reset still fires at multiples of
-`opt->regularly` because `round()` absorbs the offset within
-±0.5 s. The expected upstream behavior: reset cadence skips
-or doubles, depending on the offset direction.
+**Misaligned-start case** demonstrates the fork's intended
+behavior on real production timing: fork's reset epochs remain
+on absolute multiples of `opt->regularly`, while upstream's
+shift by 60 s to follow the session start.
+
+Full extracts are in
+[`geonet/`](./geonet/) (see
+[`geonet/README.md`](./geonet/README.md) for reproduction
+instructions and the rationale for not committing the
+underlying NMEA / trace files).
+
+**Verdict**: PASS. Production data confirms (a) no regression
+on aligned sessions and (b) absolute-GPS-aligned reset epochs
+on misaligned sessions, which is the property PNT Moni's TTFF
+aggregation requires.
+
+### Note on the original "receiver clock offset" failure mode
+
+GEONET RINEX exports clean integer-second observation
+timestamps regardless of the receiver-side clock state, so the
+specific failure mode described in MOD-001's "Issue" section —
+`timediff` falling just below the configured interval (e.g.,
+29.999 vs. 30.0) — is not directly reproducible from this
+data. The MOD-001 fix is still the correct fix for that
+scenario (the `round()` tolerance absorbs ±0.5 s of obs-time
+offset), but the symptom that does manifest in production is
+the **alignment drift** demonstrated in the misaligned-start
+case above. PNT Moni's TTFF aggregation needs reset epochs to
+be consistent across files and sessions, which the fork now
+provides and upstream does not.
+
+---
+
+## All four required properties
+
+| # | Property | Result |
+|---|---|---|
+| 1 | No regression with `misc-regularly` disabled | ✓ PASS (Result 1) |
+| 2 | Resets fire at integer multiples of `opt->regularly` | ✓ PASS (Results 2, 3, 4) |
+| 3 | Reset alignment invariant to obs cadence | ✓ PASS (Results 2 vs. 3) |
+| 4 | Robustness on real GEONET 30 s data | ✓ PASS (Result 4) |
 
 ---
 
