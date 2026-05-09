@@ -86,62 +86,105 @@ Each modification follows this lifecycle:
 
 ### MOD-001: Integer rounding of TTFF reset interval
 
-**Status**: Pending implementation (as of 2026-05-09)
+**Status**: Implemented (verification pending) — 2026-05-09
 
 **Issue**
 
 CLASLIB provides a `misc-regularly` option intended for periodic
 state reset, primarily used for Time-To-First-Fix (TTFF)
-measurement. The reset logic computes the elapsed time modulo the
-reset interval and triggers a reset when the modulo is below an
-epsilon threshold.
-
-When operating on observation data with sub-minute sampling
-intervals (e.g., 30-second sampled GEONET data), the reset
-interval calculation uses floating-point arithmetic. Floating-
-point representation of the interval boundary causes the modulo
-computation to produce non-zero remainders even at intended
-reset boundaries.
-
-As a result, with 30-second sampled data, resets do not trigger
-reliably even when the elapsed time should be a clean multiple
-of the configured reset period (e.g., 900 seconds for a 15-minute
-reset, or 3600 seconds for a 60-minute reset).
-
-This prevents TTFF measurement on GEONET data, which is sampled
-at 30-second intervals.
-
-**Expected location**
-
-The reset logic is expected to be in one of:
-
-- `src/postpos.c` (post-processing main loop)
-- `src/ppprtk.c` (PPP-RTK specific reset handling)
-- `src/rtkpos.c` (general RTK reset logic inherited from RTKLIB)
-
-The exact file and line are to be confirmed during implementation.
-
-**Proposed fix**
-
-Round the reset interval to integer seconds before the modulo
-computation:
+measurement. Upstream's implementation triggers a reset when the
+float-valued elapsed time since the last reset meets or exceeds
+the configured interval, then anchors the next interval at the
+exact obs time of the reset:
 
 ```c
-/* Original (illustrative; actual upstream code TBD) */
-double reset_interval = ...;  /* configured in seconds */
-if (fmod(elapsed, reset_interval) < EPS) {
-    /* trigger reset */
-}
-
-/* PNTMONI MOD-001 */
-int reset_interval_int = (int)round(reset_interval);
-if (reset_interval_int > 0 && ((int)round(elapsed)) % reset_interval_int == 0) {
-    /* trigger reset */
+/* upstream */
+if (opt->regularly != 0 && timediff(obs[0].time, regularly) >= (double)opt->regularly) {
+    /* reset, then: */
+    regularly = obs[0].time;
 }
 ```
 
-The exact form of the fix will be determined when the upstream
-location is identified.
+Two problems arise on sub-minute sampled data such as GEONET
+30-second observations:
+
+1. **Reset cadence skips when receiver clock is offset.** If the
+   receiver clock causes `timediff` to be e.g. 29.999 instead of
+   30.0 between consecutive epochs, the comparison fails and no
+   reset fires. The next epoch's timediff (~59.998) does trigger
+   a reset, but the reset cadence has effectively doubled (60s
+   instead of 30s) — and this can repeat for the entire run.
+
+2. **Reset is not aligned to absolute GPS seconds.** Because the
+   anchor is updated to the exact obs time on each reset, drift
+   accumulates and resets shift in TOW relative to the nominal
+   schedule. This complicates TTFF measurement, where reset
+   epochs should be globally consistent across runs and across
+   files.
+
+For TTFF percentile measurement on GEONET 30-second data, both
+issues mean the actual reset behavior diverges from the
+documented "reset every N seconds" intent.
+
+**Affected files**
+
+| File | Function | Lines (post-fix) |
+|---|---|---|
+| `src/ppprtk.c` | `ppp_rtk_pos` | 1477–1497 |
+| `src/rtkvrs.c` | `relposvrs` | 1561–1576 |
+
+Both functions contain the same reset trigger pattern; the code
+is duplicated between PPP-RTK and VRS modes upstream, so the fix
+is applied identically in both locations.
+
+The `static gtime_t regularly` declarations (`src/ppprtk.c:1434`
+and `src/rtkvrs.c:1540`) and the `regularly = obs[0].time;`
+assignments inside the reset block are retained — they feed the
+last-reset-time guard in the new condition.
+
+**Implementation**
+
+The trigger condition is replaced with a TOW-modulo check guarded
+by last-reset-time:
+
+```c
+/* upstream */
+if (opt->regularly != 0 && timediff(obs[0].time, regularly) >= (double)opt->regularly) {
+
+/* PNTMONI MOD-001 */
+if (opt->regularly != 0
+    && ((int)round(time2gpst(obs[0].time, NULL))) % opt->regularly == 0
+    && timediff(obs[0].time, regularly) >= (double)opt->regularly - 0.5) {
+```
+
+Two added conditions:
+
+- **`((int)round(tow)) % opt->regularly == 0`** — fires only when
+  the GPS time-of-week (rounded to integer seconds) is an exact
+  multiple of the configured interval. This anchors resets to
+  absolute GPS seconds rather than to "elapsed time since last
+  reset", making reset timing globally consistent across runs.
+  The `round()` tolerates ±0.5s of receiver clock offset on the
+  obs time tag.
+
+- **`timediff(...) >= (double)opt->regularly - 0.5`** — guards
+  against double-firing when multiple obs epochs round to the
+  same integer TOW (a concern for sub-second sampled data; not
+  triggered for 30s GEONET data but kept for correctness).
+
+In `src/rtkvrs.c` the existing local `tow` variable
+(declared at line 1553) is reused inside the modulo check
+instead of calling `time2gpst()` a second time.
+
+**Constraint**
+
+This implementation requires `opt->regularly` to be a multiple of
+the obs sampling interval. For 30-second GEONET data, valid
+choices are 30, 60, 90, ..., 900, 1800, 3600, etc. Choosing a
+value that doesn't align (e.g., 45 with 30s data) will cause
+resets to be missed because no observation epoch will land on the
+required TOW. Sample configurations used by PNT Moni should be
+documented and reviewed against this constraint.
 
 **Impact statement**
 
@@ -309,3 +352,10 @@ directed to https://github.com/QZSS-Strategy-Office/claslib.
 ## Document History
 
 - 2026-05-09: Initial creation. MOD-001 entry added as pending.
+- 2026-05-09: MOD-001 implemented in `src/ppprtk.c` and
+  `src/rtkvrs.c` on branch `mod-001-ttff-reset-interval`. Status
+  moved from "Pending implementation" to "Implemented
+  (verification pending)". Issue description corrected to match
+  actual upstream code (timediff-based comparison, not
+  modulo+epsilon). Affected-files and Implementation sections
+  populated with concrete code.
