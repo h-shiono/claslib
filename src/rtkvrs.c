@@ -1558,8 +1558,13 @@ extern int relposvrs(rtk_t *rtk, const obsd_t *obs, int nu, int *nr, nav_t *nav)
 
     check_vrs_facility(nav,obs,nu,nr,opt->l6mrg);
     
+    /* PNTMONI MOD-001: TOW-modulo reset for sub-minute sampled data.
+       Original used float timediff which fails on 30s GEONET data
+       when receiver clock is offset. */
     regularly = (regularly.time == -1 ? obs[0].time: regularly);
-    if (opt->regularly != 0 && timediff(obs[0].time, regularly) >= (double)opt->regularly) {
+    if (opt->regularly != 0
+        && ((int)round(tow)) % opt->regularly == 0
+        && timediff(obs[0].time, regularly) >= (double)opt->regularly - 0.5) {
         trace(1, "relposvrs(): regularly reset filter, tow=%.1f\n", tow);
         for (i=0;i<rtk->nx;i++) rtk->x[i]=0.0;
         rtk->sol.stat=SOLQ_SINGLE;

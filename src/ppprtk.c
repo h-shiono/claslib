@@ -1474,8 +1474,13 @@ extern void ppp_rtk_pos(rtk_t *rtk, const obsd_t *obs, int n, nav_t *nav)
         for (i=0;i<rtk->nx;i++) rtk->x[i]=0.0;
     }
 
+    /* PNTMONI MOD-001: TOW-modulo reset for sub-minute sampled data.
+       Original used float timediff which fails on 30s GEONET data
+       when receiver clock is offset. */
     regularly = (regularly.time == -1 ? obs[0].time: regularly);
-    if (opt->regularly != 0 && timediff(obs[0].time, regularly) >= (double)opt->regularly) {
+    if (opt->regularly != 0
+        && ((int)round(time2gpst(obs[0].time, NULL))) % opt->regularly == 0
+        && timediff(obs[0].time, regularly) >= (double)opt->regularly - 0.5) {
         trace(1, "ppp_rtk_pos(): regularly reset filter, tow=%.1f, network=%d\n", time2gpst(obs[0].time, NULL), grid.network);
         for (i=0;i<rtk->nx;i++) rtk->x[i]=0.0;
         rtk->sol.stat=SOLQ_SINGLE;
